@@ -1,0 +1,539 @@
+#!/usr/bin/env scheme-script
+
+#!r6rs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Scheme script for testing the first prototypes.
+;;; Written by William D Clinger.
+;;;
+;;; Usage:
+;;;
+;;;     ../test9 <dir>
+;;; or
+;;;     ../test9 <dir> <part> ...
+;;;
+;;; where <dir> is the name of a subdirectory containing the
+;;; Program/dam or Program/dan software to be tested,
+;;; and <part> ... is a subsequence of "1 2 3 4 5 6 7 8 9"
+;;; specifying the parts to be run (defaults to the first
+;;; eight parts).
+;;;
+;;; This script will write several files in <dir> and then
+;;; summarize what's wrong with those files.
+;;;
+;;; The following examples assume test9 is present within the
+;;; parent directory of the current directory, which is how
+;;; it's set up during the grading process.
+;;;
+;;; Examples:
+;;;
+;;;     ../test9 henry
+;;;     ../test9 mary 1
+;;;     ../test9 jane 2 4
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(import (rnrs base)
+        (rnrs lists)
+        (rnrs sorting)
+        (rnrs io simple)
+        (rnrs io ports)
+        (rnrs programs)
+        (srfi :6 basic-string-ports)
+        (primitives current-directory
+                    current-seconds
+                    system))
+
+(define course 'cs5500)            ; FIXME: edit for cs4500
+
+(define (cs5500?)
+  (eq? course 'cs5500))
+
+(define cmds (command-line))
+
+(define dir
+  (if (>= (length cmds) 3)
+      (list-ref cmds 2)
+      (begin (display "Incorrect command line.")
+             (newline)
+             (exit))))
+
+(define parts
+  (if (= 3 (length cmds))
+      '(1 2 3 4 5 6 7 8)
+      (map string->number (cdddr cmds))))
+
+(define pgm
+  (if (cs5500?)
+      "./dam"
+      "./dan"))
+
+(define input-directory1
+  "/course/cs5500f14/Assignments/A5")
+
+(define input-directory2
+  "/course/cs4500f14/Assignments/A4new")
+
+(define input-directory3
+  "/course/cs4500f14/Assignments/A6")
+
+(define input-directory4
+  "/course/cs4500f14/Assignments/A6/Logs")
+
+(define input-directory5
+  "/course/cs4500f14/Assignments/A8/")
+
+(define input-directory input-directory1)
+
+(define (make-logfile basename)
+  (string-append "../" basename (number->string (current-seconds))))
+
+(define logfile (make-logfile "log"))
+(define errfile (make-logfile "err"))
+
+(define (run team opt1 file1 opt2 file2)
+  (run-checking-exit-status team opt1 file1 opt2 file2 0))
+
+(define (run-checking-exit-status team opt1 file1 opt2 file2 status)
+; (newline)
+; (newline)
+; (display (string-append team " : " logfile))
+; (newline)
+  (run-command-checking-exit-status
+   (string-append pgm
+                  opt1 (string-append input-directory "/" file1)
+                  opt2 (string-append input-directory "/" file2)
+                  " >> " logfile
+                  " 2>> " errfile)
+   status))
+
+(define (run-command-checking-exit-status cmd status)
+  (let ((exit-status (system cmd)))
+
+    (define (complain-about-status)
+      (display "    RETURNED INCORRECT EXIT STATUS")
+      (newline))
+
+    (cond ((and (zero? status)
+                (not (zero? exit-status)))
+           (complain-about-status))
+          ((and (not (zero? status))
+                (zero? exit-status))
+           (complain-about-status)))))
+
+(current-directory dir)
+(current-directory "Program")
+
+(define part1 #f)
+(define part2 #f)
+(define part3 #f)
+(define part4 #f)
+(define part5 #f)
+(define part6 #f)
+(define part7 #f)
+(define part8 #f)
+(define part9 #f)
+
+(if (memv 1 parts)
+    (begin
+
+     (display "Running part 1 (sanity checks)")
+     (newline)
+     (display "    ")
+     (system "date")
+
+     (set! logfile (make-logfile "sanity"))
+     (set! part1 logfile)
+
+     (run dir " -f " "bad0616.wav" " -f " "z01.wav")  ; should match
+     (run dir " -f " "z02.wav"     " -f " "z05.wav")  ; should not match
+    ))
+
+(define wrong1 pgm)
+(define wrong2
+  (string-append pgm " " pgm " " pgm))
+(define wrong3
+  (string-append pgm " -d " input-directory1 "/nosuchDirectory"
+                     " -f " input-directory1 "/bad2131.wav"))
+(define wrong4
+  (string-append pgm " -d " input-directory1 "/Sor4959.wav"
+                     " -f " input-directory1 "/Sor4959.wav"))
+(define wrong5
+  (string-append pgm " -f " input-directory1 "/Sor4959.wav"
+                            input-directory1 "/Sor4959.wav"))
+
+(if (memv 2 parts)
+    (begin
+
+     (display "Running part 2 (five error cases)")
+     (newline)
+     (display "    ")
+     (system "date")
+
+     (set! logfile (make-logfile "wrong"))
+     (set! part2 logfile)
+
+     (run-command-checking-exit-status wrong1 1)
+     (run-command-checking-exit-status wrong2 1)
+     (run-command-checking-exit-status wrong3 1)
+     (run-command-checking-exit-status wrong4 1)
+     (run-command-checking-exit-status wrong5 1)))
+
+(if (memv 3 parts)
+    (begin
+
+     (display "Running part 3 (five normal cases, all WAVE files)")
+     (newline)
+     (display "    ")
+     (system "date")
+
+     (set! logfile (make-logfile "log3"))
+     (set! part3 logfile)
+
+     (run dir " -f " "z01.wav" " -f " "z02.wav")      ; should match
+;    (run dir " -f " "z03.wav" " -f " "z04.wav")      ; should match
+;    (run dir " -f " "z05.wav" " -f " "z06.wav")      ; should match
+     (run dir " -f " "z07.wav" " -f " "z08.wav")      ; should match
+     (run dir " -f " "z08.wav" " -f " "Sor4959.wav")  ; should match
+
+     (run dir " -f " "z02.wav" " -f " "z05.wav")      ; should not match
+;    (run dir " -f " "z04.wav" " -f " "z01.wav")      ; should not match
+     (run dir " -f " "z05.wav" " -f " "z03.wav")      ; should not match
+;    (run dir " -f " "z07.wav" " -f " "z05.wav")      ; should not match
+;    (run dir " -f " "z08.wav" " -f " "z06.wav")      ; should not match
+    ))
+
+(if (memv 4 parts)
+    (begin
+
+     (display "Running part 4 (ten normal cases, file against file)")
+     (newline)
+     (display "    ")
+     (system "date")
+
+     (set! logfile (make-logfile "log4"))
+     (set! part4 logfile)
+
+     (set! input-directory input-directory2)
+
+     (run dir " -f " "curieuse.wav" " -f " "curieuse2.wav")  ; should match
+     (run dir " -f " "janacek.wav"  " -f " "janacek2.wav")   ; should match
+     (run dir " -f " "maynard.wav"  " -f " "maynard2.wav")   ; should match
+     (run dir " -f " "rimsky.wav"   " -f " "rimsky2.wav")    ; should match
+     (run dir " -f " "sons.wav"     " -f " "sons2.wav")      ; should match
+
+     (run dir " -f " "curieuse.wav" " -f " "janacek2.wav")   ; should not match
+     (run dir " -f " "janacek.wav"  " -f " "maynard2.wav")   ; should not match
+     (run dir " -f " "maynard.wav"  " -f " "rimsky2.wav")    ; should not match
+     (run dir " -f " "rimsky.wav"   " -f " "sons2.wav")      ; should not match
+     (run dir " -f " "sons.wav"     " -f " "curieuse2.wav")  ; should not match
+
+;    (run dir " -f " "curieuse.wav" " -f " "rimsky2.wav")    ; should not match
+;    (run dir " -f " "janacek.wav"  " -f " "curieuse2.wav")  ; should not match
+;    (run dir " -f " "maynard.wav"  " -f " "sons2.wav")      ; should not match
+;    (run dir " -f " "rimsky.wav"   " -f " "janacek2.wav")   ; should not match
+;    (run dir " -f " "sons.wav"     " -f " "maynard2.wav")   ; should not match
+
+    ))
+
+(if (memv 5 parts)
+    (begin
+
+     (display "Running part 5 (two normal cases, file against dir)")
+     (newline)
+     (display "    ")
+     (system "date")
+
+     (set! logfile (make-logfile "log5"))
+     (set! part5 logfile)
+
+     (set! input-directory input-directory3)
+
+     (run dir " -f " "D1/curieuse2.wav" " -d " "D2")
+     (run dir " -d " "D2" " -f " "D1/rimsky.mp3")))
+
+(if (memv 6 parts)
+    (begin
+
+     (display "Running part 6 (dir against dir, originals to fragments)")
+     (newline)
+     (display "    ")
+     (system "date")
+
+     (set! logfile (make-logfile "log6"))
+     (set! part6 logfile)
+
+     (set! input-directory input-directory3)
+
+     (run dir " -d " "D7" " -d " "D8")))
+
+(if (memv 7 parts)
+    (begin
+
+     (display "Running part 7 (dir against dir, matching fragments)")
+     (newline)
+     (display "    ")
+     (system "date")
+
+     (set! logfile (make-logfile "log7"))
+     (set! part7 logfile)
+
+     (set! input-directory input-directory3)
+
+     (run dir " -d " "D6" " -d " "D7")))
+
+(if (memv 8 parts)
+    (begin
+
+     (display "Running part 8 (dir against dir, matching fragments)")
+     (newline)
+     (display "    ")
+     (system "date")
+
+     (set! logfile (make-logfile "log8"))
+     (set! part8 logfile)
+
+     (set! input-directory input-directory5)
+
+     (run dir " -d " "D1" " -d " "D2")))
+
+(newline)
+(newline)
+
+(define (read-lines file)
+  (call-with-input-file
+   file
+   (lambda (p)
+     (let loop ((lines '()))
+       (let ((x (get-line p)))
+         (if (eof-object? x)
+             (reverse lines)
+             (loop (cons x lines))))))))
+
+; Converts "MATCH bad0616.wav z01.wav 0.0 0.0"
+;     into "MATCH bad0616.wav z01.wav"
+
+(define (truncate-line line)
+  (define (search-for-space x)
+    (if (pair? x)
+        (memv #\space (cdr x))
+        x))
+  (define (truncate-it s)
+    (let* ((x (search-for-space (string->list s)))
+           (x (search-for-space x))
+           (x (search-for-space x)))
+      (if x
+          (substring s 0 (- (string-length s) (length x)))
+          s)))
+  (truncate-it line))
+
+; Checks to see whether a MATCH line is syntactically correct.
+
+(define (syntax-okay? s)
+  (let* ((truncated (truncate-line s))
+         (n1 (string-length truncated))
+         (n2 (string-length s))
+         (numeric-part (substring s n1 n2))
+         (p (open-input-string numeric-part)))
+    (and (number? (read p))
+         (number? (read p))
+         (eof-object? (read p)))))
+
+; Checks to see whether the difference between offsets
+; matches within tolerance.
+
+(define offset-tolerance 1.0)
+
+(define (offsets-match? expected actual)
+  (let* ((truncated (truncate-line expected))
+         (n1 (string-length truncated))
+         (n2 (string-length expected))
+         (numeric-part (substring expected n1 n2))
+         (p (open-input-string numeric-part))
+         (offset1 (read p))
+         (offset2 (read p))
+         (truncated (truncate-line actual))
+         (n1 (string-length truncated))
+         (n2 (string-length actual))
+         (numeric-part (substring actual n1 n2))
+         (p (open-input-string numeric-part))
+         (offset3 (read p))
+         (offset4 (read p))
+         (d1 (- offset1 offset2))
+         (d2 (- offset3 offset4))
+         (diff (abs (- d1 d2))))
+    (< diff offset-tolerance)))
+
+(define (mydiff file1 file2)
+
+  (define (truncated<? s1 s2)
+    (string<? (truncate-line s1)
+              (truncate-line s2)))
+
+  (let* ((lines1 (read-lines file1))
+         (lines2 (read-lines file2))
+         (lines1 (list-sort truncated<? lines1))
+         (lines2 (list-sort truncated<? lines2))
+         (n (length lines1)))
+
+    (define (loop expected
+                  actual
+                  false-positives
+                  false-negatives
+                  bad-offsets
+                  bad-syntax)
+      (cond ((and (null? expected)
+                  (null? actual))
+             (summarize (reverse false-positives)
+                        (reverse false-negatives)
+                        (reverse bad-offsets)
+                        (reverse bad-syntax)))
+            ((null? expected)
+             (loop '()
+                   '()
+                   (append (reverse actual) false-positives)
+                   false-negatives
+                   bad-offsets
+                   bad-syntax))
+            ((null? actual)
+             (loop '()
+                   '()
+                   false-positives
+                   (append (reverse expected) false-negatives)
+                   bad-offsets
+                   bad-syntax))
+            ((string=? (truncate-line (car expected))
+                       (truncate-line (car actual)))
+             (cond ((not (syntax-okay? (car actual)))
+                    (loop (cdr expected)
+                          (cdr actual)
+                          false-positives
+                          false-negatives
+                          bad-offsets
+                          (cons (car actual) bad-syntax)))
+                   ((offsets-match? (car expected) (car actual))
+                    (loop (cdr expected)
+                          (cdr actual)
+                          false-positives
+                          false-negatives
+                          bad-offsets
+                          bad-syntax))
+                   (else
+                    (loop (cdr expected)
+                          (cdr actual)
+                          false-positives
+                          false-negatives
+                          (cons (car actual) bad-offsets)
+                          bad-syntax))))
+            ((string<? (truncate-line (car expected))
+                       (truncate-line (car actual)))
+             (loop (cdr expected)
+                   actual
+                   false-positives
+                   (cons (car expected) false-negatives)
+                   bad-offsets
+                   bad-syntax))
+            ((string>? (truncate-line (car expected))
+                       (truncate-line (car actual)))
+             (loop expected
+                   (cdr actual)
+                   (cons (car actual) false-positives)
+                   false-negatives
+                   bad-offsets
+                   bad-syntax))
+            (else
+             (error 'mydiff "this can't happen" expected actual))))
+
+    (define (summarize false-positives false-negatives bad-offsets bad-syntax)
+      (if (not (null? bad-syntax))
+          (begin (display "    ")
+                 (write (length bad-syntax))
+                 (display " instances of incorrect output syntax:\n")
+                 (display-names bad-syntax)))
+      (if (not (null? bad-offsets))
+          (begin (display "    ")
+                 (write (length bad-offsets))
+                 (display " instances of inaccurate offsets:\n")
+                 (display-names bad-offsets)))
+      (if (not (null? false-positives))
+          (begin (display "    ")
+                 (write (length false-positives))
+                 (display " false positives:\n")
+                 (display-names false-positives)))
+      (if (not (null? false-negatives))
+          (begin (display "    ")
+                 (write (length false-negatives))
+                 (display " false negatives:\n")
+                 (display-names false-negatives))))
+
+    (define (display-names strings)
+      (for-each (lambda (s)
+                  (display "      ")
+                  (display s)
+                  (newline))
+                strings))
+
+    (loop lines1 lines2 '() '() '() '())))
+
+(if part1
+    (begin
+     (display "Part 1 diff:")
+     (newline)
+     (mydiff (string-append input-directory4 "/sanity.txt")
+             part1)))
+
+(if part3
+    (begin
+     (display "Part 3 diff:")
+     (newline)
+     (mydiff (string-append input-directory4 "/log3.txt")
+             part3)))
+
+(if part4
+    (begin
+     (display "Part 4 diff:")
+     (newline)
+     (mydiff (string-append input-directory4 "/log4.txt")
+             part4)))
+
+(if part5
+    (begin
+     (display "Part 5 diff:")
+     (newline)
+     (mydiff (string-append input-directory4 "/log5.txt")
+             part5)))
+
+(if part6
+    (begin
+     (display "Part 6 diff:")
+     (newline)
+     (mydiff (string-append input-directory4 "/log6.txt")
+             part6)))
+
+(if part7
+    (begin
+     (display "Part 7 diff:")
+     (newline)
+     (mydiff (string-append input-directory4 "/log7.txt")
+             part7)))
+
+(if part8
+    (begin
+     (display "Part 8 diff:")
+     (newline)
+     (mydiff (string-append input-directory5 "/log8.txt")
+             part8)))
+
+(newline)
+(newline)
+
+(if (call-with-input-file
+     errfile
+     (lambda (p)
+       (not (eof-object? (read-char p)))))
+    (begin
+     (display "Incorrect error output:")
+     (newline)
+     (newline)
+     (system (string-append "cat " errfile))))
